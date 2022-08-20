@@ -1,5 +1,7 @@
 #pragma once
 
+#include <inttypes.h>
+
 typedef int cpu_type_t;
 typedef int cpu_subtype_t;
 typedef int	vm_prot_t;
