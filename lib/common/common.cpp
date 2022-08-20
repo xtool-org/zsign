@@ -410,8 +410,15 @@ uint64_t GetMicroSecond()
 	return tv.tv_sec * 1000000 + tv.tv_usec;
 }
 
+#ifdef __APPLE__
+#import <TargetConditionals.h>
+#endif
+
 bool SystemExec(const char *szFormatCmd, ...)
 {
+#if TARGET_OS_IPHONE
+	return false;
+#else
 	PARSEVALIST(szFormatCmd, szCmd)
 
 	if (strlen(szCmd) <= 0)
@@ -448,6 +455,7 @@ bool SystemExec(const char *szFormatCmd, ...)
 #endif
 	}
 	return false;
+#endif
 }
 
 uint16_t _Swap(uint16_t value)

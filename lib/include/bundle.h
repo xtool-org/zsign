@@ -24,7 +24,7 @@ private:
 
 private:
 	bool GenerateCodeResources(const string &strFolder, JValue &jvCodeRes);
-	void GetFolderFiles(const string &strFolder, const string &strBaseFolder, set<string> &setFiles);
+	void GetFolderFiles(const string &strFolder, const string &strBaseFolder, set<string> &setFiles, map<string, string> &mapLinks);
 
 private:
 	bool m_bForceSign;

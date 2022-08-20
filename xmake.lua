@@ -7,7 +7,8 @@ add_requires("openssl")
 -- define target
 target("zsign")
     set_kind("binary")
-    add_files("*.cpp", "common/*.cpp")
+    add_includedirs("lib/include", "lib/include/common")
+    add_files("lib/*.cpp", "lib/common/*.cpp")
     add_packages("openssl")
     set_languages("c99", "c++11")
 

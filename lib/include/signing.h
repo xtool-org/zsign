@@ -2,6 +2,7 @@
 #include "openssl.h"
 
 bool ParseCodeSignature(uint8_t *pCSBase);
+bool ParseCodeSignatureEntitlements(uint8_t *pCSBase, string &entitlements);
 bool SlotBuildEntitlements(const string &strEntitlements, string &strOutput);
 bool SlotBuildDerEntitlements(const string &strEntitlements, string &strOutput);
 bool SlotBuildRequirements(const string &strBundleID, const string &strSubjectCN, string &strOutput);

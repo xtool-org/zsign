@@ -145,7 +145,7 @@ bool ZAppBundle::GetObjectsToSign(const string &strFolder, JValue &jvInfo)
 	return true;
 }
 
-void ZAppBundle::GetFolderFiles(const string &strFolder, const string &strBaseFolder, set<string> &setFiles)
+void ZAppBundle::GetFolderFiles(const string &strFolder, const string &strBaseFolder, set<string> &setFiles, map<string, string> &mapLinks)
 {
 	DIR *dir = opendir(strFolder.c_str());
 	if (NULL != dir)
@@ -160,11 +160,18 @@ void ZAppBundle::GetFolderFiles(const string &strFolder, const string &strBaseFo
 				strNode += ptr->d_name;
 				if (DT_DIR == ptr->d_type)
 				{
-					GetFolderFiles(strNode, strBaseFolder, setFiles);
+					GetFolderFiles(strNode, strBaseFolder, setFiles, mapLinks);
 				}
 				else if (DT_REG == ptr->d_type)
 				{
 					setFiles.insert(strNode.substr(strBaseFolder.size() + 1));
+				}
+				else if (DT_LNK == ptr->d_type)
+				{
+					char link[PATH_MAX];
+					ssize_t sz = readlink(strNode.c_str(), link, sizeof(link));
+					if (sz == -1) continue;
+					mapLinks[strNode.substr(strBaseFolder.size() + 1)] = string(link, sz);
 				}
 			}
 			ptr = readdir(dir);
@@ -178,7 +185,8 @@ bool ZAppBundle::GenerateCodeResources(const string &strFolder, JValue &jvCodeRe
 	jvCodeRes.clear();
 
 	set<string> setFiles;
-	GetFolderFiles(strFolder, strFolder, setFiles);
+	map<string, string> mapLinks;
+	GetFolderFiles(strFolder, strFolder, setFiles, mapLinks);
 
 	JValue jvInfo;
 	string strInfoPlistPath = strFolder + "/Info.plist";
@@ -239,6 +247,16 @@ bool ZAppBundle::GenerateCodeResources(const string &strFolder, JValue &jvCodeRe
 				jvCodeRes["files2"][strKey]["optional"] = true;
 			}
 		}
+	}
+
+	for (auto it = mapLinks.begin(); it != mapLinks.end(); it++)
+	{
+		const string &strKey = it->first;
+		string strFile = strFolder + "/" + strKey;
+		const string &link = it->second;
+
+		jvCodeRes["files"][strKey]["symlink"] = link;
+		jvCodeRes["files2"][strKey]["symlink"] = link;
 	}
 
 	jvCodeRes["rules"]["^.*"] = true;
@@ -595,7 +613,7 @@ bool ZAppBundle::SignFolder(ZSignAsset *pSignAsset,
 		}
 	}
 
-	if (!WriteFile(pSignAsset->m_strProvisionData, "%s/embedded.mobileprovision", m_strAppFolder.c_str()))
+	if (!pSignAsset->m_strProvisionData.empty() && !WriteFile(pSignAsset->m_strProvisionData, "%s/embedded.mobileprovision", m_strAppFolder.c_str()))
 	{ //embedded.mobileprovision
 		ZLog::ErrorV(">>> Can't Write embedded.mobileprovision!\n");
 		return false;

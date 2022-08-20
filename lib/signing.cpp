@@ -286,7 +286,7 @@ bool SlotBuildRequirements(const string &strBundleID, const string &strSubjectCN
 	return true;
 }
 
-bool SlotParseEntitlements(uint8_t *pSlotBase, CS_BlobIndex *pbi)
+bool SlotParseEntitlements(uint8_t *pSlotBase, CS_BlobIndex *pbi, string &entitlements)
 {
 	uint32_t uSlotLength = SlotParseGeneralHeader("CSSLOT_ENTITLEMENTS", pSlotBase, pbi);
 	if (uSlotLength < 8)
@@ -294,8 +294,10 @@ bool SlotParseEntitlements(uint8_t *pSlotBase, CS_BlobIndex *pbi)
 		return false;
 	}
 
+	entitlements = string((const char *)pSlotBase + 8, uSlotLength - 8);
+
 	string strEntitlements = "\t\t\t";
-	strEntitlements.append((const char *)pSlotBase + 8, uSlotLength - 8);
+	strEntitlements.append(entitlements);
 	PWriter::StringReplace(strEntitlements, "\n", "\n\t\t\t");
 	ZLog::PrintV("\tentitlements: \n%s\n", strEntitlements.c_str());
 
@@ -768,6 +770,8 @@ bool ParseCodeSignature(uint8_t *pCSBase)
 	ZLog::PrintV("\tlength: \t%d\n", LE(psb->length));
 	ZLog::PrintV("\tslots: \t\t%d\n", LE(psb->count));
 
+	string ents;
+
 	CS_BlobIndex *pbi = (CS_BlobIndex *)(pCSBase + sizeof(CS_SuperBlob));
 	for (uint32_t i = 0; i < LE(psb->count); i++, pbi++)
 	{
@@ -781,7 +785,7 @@ bool ParseCodeSignature(uint8_t *pCSBase)
 			SlotParseRequirements(pSlotBase, pbi);
 			break;
 		case CSSLOT_ENTITLEMENTS:
-			SlotParseEntitlements(pSlotBase, pbi);
+			SlotParseEntitlements(pSlotBase, pbi, ents);
 			break;
 		case CSSLOT_DER_ENTITLEMENTS:
 			SlotParseDerEntitlements(pSlotBase, pbi);
@@ -809,6 +813,30 @@ bool ParseCodeSignature(uint8_t *pCSBase)
 		WriteFile("./.zsign_debug/CodeSignature.blob", (const char *)pCSBase, LE(psb->length));
 	}
 	return true;
+}
+
+bool ParseCodeSignatureEntitlements(uint8_t *pCSBase, string &entitlements)
+{
+	CS_SuperBlob *psb = (CS_SuperBlob *)pCSBase;
+	if (NULL == psb || CSMAGIC_EMBEDDED_SIGNATURE != LE(psb->magic))
+	{
+		return false;
+	}
+
+	CS_BlobIndex *pbi = (CS_BlobIndex *)(pCSBase + sizeof(CS_SuperBlob));
+	for (uint32_t i = 0; i < LE(psb->count); i++, pbi++)
+	{
+		uint8_t *pSlotBase = pCSBase + LE(pbi->offset);
+		switch (LE(pbi->type))
+		{
+		case CSSLOT_ENTITLEMENTS:
+			return SlotParseEntitlements(pSlotBase, pbi, entitlements);
+		default:
+			break;
+		}
+	}
+
+	return false;
 }
 
 bool SlotGetCodeSlotsData(uint8_t *pSlotBase, uint8_t *&pCodeSlots, uint32_t &uCodeSlotsLength)

@@ -7,7 +7,7 @@ set(CMAKE_CXX_STANDARD 11)
 # On macOS, search Homebrew for keg-only versions of OpenSSL because system provided /usr/lib/libssl.dylib cannot be linked
 if (CMAKE_HOST_SYSTEM_NAME MATCHES "Darwin")
     execute_process(
-        COMMAND brew --prefix OpenSSL 
+        COMMAND brew --prefix OpenSSL@1.1
         RESULT_VARIABLE BREW_OPENSSL
         OUTPUT_VARIABLE BREW_OPENSSL_PREFIX
         OUTPUT_STRIP_TRAILING_WHITESPACE
@@ -36,7 +36,8 @@ list(APPEND LIB_LIST ${ZLIB_LIBRARIES})
 
 # Main sources
 
-file(GLOB SRC common/*.cpp ./**.cpp)
+include_directories(lib/include lib/include/common)
+file(GLOB SRC lib/common/*.cpp lib/*.cpp)
 
 add_executable(zsign ${SRC})
 target_link_libraries(zsign ${LIB_LIST})
