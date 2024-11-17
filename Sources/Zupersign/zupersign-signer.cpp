@@ -1,9 +1,9 @@
+#include <Zupersign.h>
+#include <openssl/err.h>
 #include "openssl.h"
 #include "macho.h"
 #include "bundle.h"
 #include "signing.h"
-#include <openssl/err.h>
-#include <signer.h>
 
 static void print_ssl_err(char **exception, const char *reason) {
     unsigned long last_error = ERR_peek_last_error();
@@ -20,7 +20,7 @@ static void print_ssl_err(char **exception, const char *reason) {
              ERR_reason_error_string(last_error));
 }
 
-static int sign(
+int zsign_sign(
     const char *app_directory,
     const void *cert_data,
     size_t cert_len,
@@ -81,7 +81,7 @@ static int sign(
     return 0;
 }
 
-static void *analyze(const char *path, size_t *out_len, char **exception) {
+void *zsign_analyze(const char *path, size_t *out_len, char **exception) {
     ZMachO macho;
     if (!macho.Init(path)) {
         *exception = strdup("ZMachO::Init failed");
@@ -109,5 +109,5 @@ static void *analyze(const char *path, size_t *out_len, char **exception) {
 }
 
 __attribute__((constructor)) static void ctor() {
-    add_signer("zsign", sign, analyze);
+    add_signer("zsign", zsign_sign, zsign_analyze);
 }
