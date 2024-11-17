@@ -42,3 +42,4 @@ file(GLOB SRC lib/common/*.cpp lib/*.cpp)
 add_executable(zsign ${SRC})
 target_link_libraries(zsign ${LIB_LIST})
 
+install(TARGETS zsign DESTINATION bin)
