@@ -28,7 +28,6 @@ let package = Package(
                 .product(name: "OpenSSL", package: "SuperchargeCore"),
             ],
             cSettings: [
-                .unsafeFlags(["-w"]),
                 .define("main", to: "zsign_main"),
                 .headerSearchPath("include/common"),
             ]
