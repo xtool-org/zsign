@@ -9,3 +9,14 @@ CMakeFiles
 Makefile
 CMakeCache.txt
 cmake_install.cmake
+
+# SwiftPM
+!Sources/zsign
+.DS_Store
+/.build
+/Packages
+xcuserdata/
+DerivedData/
+.swiftpm/configuration/registries.json
+.swiftpm/xcode/package.xcworkspace/contents.xcworkspacedata
+.netrc
