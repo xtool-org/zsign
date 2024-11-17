@@ -5,9 +5,12 @@
 #include <openssl/pem.h>
 #include <openssl/cms.h>
 #include <openssl/err.h>
-#include <openssl/provider.h>
 #include <openssl/pkcs12.h>
 #include <openssl/conf.h>
+
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+#include <openssl/provider.h>
+#endif
 
 class COpenSSLInit
 {
@@ -705,7 +708,9 @@ bool ZSignAsset::Init(const string &strSignerCertFile, const string &strSignerPK
 			if (NULL == evpPKey)
 			{
 				BIO_reset(bioPKey);
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
 				OSSL_PROVIDER_load(NULL, "legacy");
+#endif
 				PKCS12 *p12 = d2i_PKCS12_bio(bioPKey, NULL);
 				if (NULL != p12)
 				{
