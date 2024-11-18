@@ -109,6 +109,6 @@ void *zsign_analyze(const char *path, size_t *out_len, char **exception) {
 }
 
 __attribute__((constructor)) static void ctor() {
-    ZLog::SetLogLever(ZLog::eLogType::E_WARN);
+    ZLog::SetLogLever(ZLog::eLogType::E_ERROR);
     add_signer("zsign", zsign_sign, zsign_analyze);
 }
