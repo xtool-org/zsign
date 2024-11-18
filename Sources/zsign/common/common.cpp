@@ -772,18 +772,24 @@ bool ZLog::PrintResultV(bool bSuccess, const char *szFormatArgs, ...)
 
 bool ZLog::Warn(const char *szLog)
 {
-	write(STDOUT_FILENO, "\033[33m", 5);
-	write(STDOUT_FILENO, szLog, strlen(szLog));
-	write(STDOUT_FILENO, "\033[0m", 4);
+    if (g_nLogLevel >= E_WARN)
+    {
+        write(STDOUT_FILENO, "\033[33m", 5);
+        write(STDOUT_FILENO, szLog, strlen(szLog));
+        write(STDOUT_FILENO, "\033[0m", 4);
+    }
 	return false;
 }
 
 bool ZLog::WarnV(const char *szFormatArgs, ...)
 {
-	PARSEVALIST(szFormatArgs, szLog)
-	write(STDOUT_FILENO, "\033[33m", 5);
-	write(STDOUT_FILENO, szLog, strlen(szLog));
-	write(STDOUT_FILENO, "\033[0m", 4);
+    if (g_nLogLevel >= E_WARN)
+    {
+        PARSEVALIST(szFormatArgs, szLog)
+        write(STDOUT_FILENO, "\033[33m", 5);
+        write(STDOUT_FILENO, szLog, strlen(szLog));
+        write(STDOUT_FILENO, "\033[0m", 4);
+    }
 	return false;
 }
 
