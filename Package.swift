@@ -19,13 +19,13 @@ let package = Package(
         ),
     ],
     dependencies: [
-        .package(url: "https://github.com/SuperchargeApp/SuperchargeCore", .upToNextMinor(from: "1.2.0")),
+        .package(url: "https://github.com/xtool-org/xtool-core", .upToNextMinor(from: "1.3.0")),
     ],
     targets: [
         .target(
             name: "zsign",
             dependencies: [
-                .product(name: "OpenSSL", package: "SuperchargeCore"),
+                .product(name: "OpenSSL", package: "xtool-core"),
             ],
             cSettings: [
                 .define("main", to: "zsign_main"),
@@ -36,8 +36,8 @@ let package = Package(
             name: "Zupersign",
             dependencies: [
                 "zsign",
-                .product(name: "OpenSSL", package: "SuperchargeCore"),
-                .product(name: "SignerSupport", package: "SuperchargeCore")
+                .product(name: "OpenSSL", package: "xtool-core"),
+                .product(name: "SignerSupport", package: "xtool-core")
             ]
         ),
     ]
