@@ -577,16 +577,10 @@ bool ZSignAsset::Init(
 	string strProvContent;
 	if (GetCMSContent(m_strProvData, strProvContent)) {
 		if (jvProv.read_plist(strProvContent)) {
-			m_strTeamId = jvProv["TeamIdentifier"][0].as_cstr();
 			if (m_strEntitleData.empty()) {
 				jvProv["Entitlements"].style_write_plist(m_strEntitleData);
 			}
 		}
-	}
-
-	if (m_strTeamId.empty()) {
-		ZLog::Error(">>> Can't find TeamId!\n");
-		return false;
 	}
 
 	if (NULL == evpPKey) {
