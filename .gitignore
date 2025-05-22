@@ -15,3 +15,8 @@ test/packages/*
 *.vcxproj.user
 .theos/
 packages/
+
+# SwiftPM
+xcuserdata/
+.swiftpm/configuration/registries.json
+.swiftpm/xcode/package.xcworkspace/contents.xcworkspacedata
