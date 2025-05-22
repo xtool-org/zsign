@@ -1,3 +1,5 @@
+#if 0
+
 #include "archive.h"
 
 #ifdef _WIN32
@@ -244,3 +246,5 @@ bool Zip::Extract(const char* zip_file, const char* output_folder)
 	}
 	return true;
 }
+
+#endif

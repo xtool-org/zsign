@@ -1,5 +1,9 @@
 #include "util.h"
 
+#ifdef __APPLE__
+#include <TargetConditionals.h>
+#endif
+
 #ifdef _WIN32
 #define PRId64						"lld"
 #elif __APPLE__
@@ -53,6 +57,9 @@ uint64_t ZUtil::GetMicroSecond()
 
 bool  ZUtil::SystemExecV(const char* szCmd, ...)
 {
+#if TARGET_OS_IPHONE
+	return false;
+#else
 	FORMAT_V(szCmd, szRealCmd);
 
 	if (strlen(szRealCmd) <= 0) {
@@ -65,6 +72,7 @@ bool  ZUtil::SystemExecV(const char* szCmd, ...)
 		return false;
 	}
 	return true;
+#endif
 }
 
 uint16_t ZUtil::Swap(uint16_t value)
