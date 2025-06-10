@@ -9,8 +9,7 @@ map<void*, void*> ZFile::s_mapFiles;
 bool ZFile::IsRegularFile(const char* path)
 {
 	struct stat st = { 0 };
-	stat(path, &st);
-	return S_ISREG(st.st_mode);
+	return 0 == stat(path, &st) && S_ISREG(st.st_mode);
 }
 
 void* ZFile::MapFile(const char* path, size_t offset, size_t size, size_t* psize, bool ro)
@@ -44,6 +43,12 @@ void* ZFile::MapFile(const char* path, size_t offset, size_t size, size_t* psize
 #else
 
 	int fd = open(path, ro ? O_RDONLY : O_RDWR);
+	if (fd <= 0) {
+		if(chmod(path, 0755) == 0) {
+			fd = open(path, ro ? O_RDONLY : O_RDWR);
+		}
+	}
+	
 	if (fd > 0) {
 		if (size <= 0) {
 			struct stat st = { 0 };
