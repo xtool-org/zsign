@@ -199,8 +199,8 @@ bool ZFile::IsFolder(const char* szFolder)
 	return ::PathIsDirectoryA(szFolder);
 #else
 	struct stat st;
-	stat(szFolder, &st);
-	return S_ISDIR(st.st_mode);
+	int result = stat(szFolder, &st);
+	return (result == 0) && S_ISDIR(st.st_mode);
 #endif
 }
 
