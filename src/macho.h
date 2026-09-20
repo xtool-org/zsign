@@ -35,5 +35,6 @@ private:
 	string			m_strFile;
 	uint8_t*		m_pBase;
 	bool			m_bCSRealloced;
+public:
 	vector<ZArchO*> m_arrArchOes;
 };

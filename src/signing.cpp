@@ -260,13 +260,21 @@ bool ZSign::SlotBuildRequirements(const string& strBundleID, const string& strSu
 
 bool ZSign::SlotParseEntitlements(uint8_t* pSlotBase, CS_BlobIndex* pbi)
 {
+	string strEnts;
+	return SlotParseEntitlements(pSlotBase, pbi, strEnts);
+}
+
+bool ZSign::SlotParseEntitlements(uint8_t* pSlotBase, CS_BlobIndex* pbi, string& strEnts)
+{
 	uint32_t uSlotLength = SlotParseGeneralHeader("CSSLOT_ENTITLEMENTS", pSlotBase, pbi);
 	if (uSlotLength < 8) {
 		return false;
 	}
 
+	strEnts = string((const char *)pSlotBase + 8, uSlotLength - 8);
+
 	string strEntitlements = "\t\t\t";
-	strEntitlements.append((const char*)pSlotBase + 8, uSlotLength - 8);
+	strEntitlements.append(strEnts);
 	ZUtil::StringReplace(strEntitlements, "\n", "\n\t\t\t");
 	ZLog::PrintV("\tentitlements: \n%s\n", strEntitlements.c_str());
 
@@ -274,9 +282,33 @@ bool ZSign::SlotParseEntitlements(uint8_t* pSlotBase, CS_BlobIndex* pbi)
 
 	if (ZLog::IsDebug()) {
 		ZFile::WriteFile("./.zsign_debug/Entitlements.slot", (const char*)pSlotBase, uSlotLength);
-		ZFile::WriteFile("./.zsign_debug/Entitlements.plist", (const char*)pSlotBase + 8, uSlotLength - 8);
+		ZFile::WriteFile("./.zsign_debug/Entitlements.plist", strEnts);
 	}
 	return true;
+}
+
+bool ZSign::ParseCodeSignatureEntitlements(uint8_t *pCSBase, string &entitlements)
+{
+	CS_SuperBlob *psb = (CS_SuperBlob *)pCSBase;
+	if (NULL == psb || CSMAGIC_EMBEDDED_SIGNATURE != LE(psb->magic))
+	{
+		return false;
+	}
+
+	CS_BlobIndex *pbi = (CS_BlobIndex *)(pCSBase + sizeof(CS_SuperBlob));
+	for (uint32_t i = 0; i < LE(psb->count); i++, pbi++)
+	{
+		uint8_t *pSlotBase = pCSBase + LE(pbi->offset);
+		switch (LE(pbi->type))
+		{
+		case CSSLOT_ENTITLEMENTS:
+			return ZSign::SlotParseEntitlements(pSlotBase, pbi, entitlements);
+		default:
+			break;
+		}
+	}
+
+	return false;
 }
 
 bool ZSign::SlotParseDerEntitlements(uint8_t* pSlotBase, CS_BlobIndex* pbi)
