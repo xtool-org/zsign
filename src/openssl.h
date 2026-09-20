@@ -1,5 +1,7 @@
 #pragma once
 #include "json.h"
+#include <openssl/x509.h>
+#include <openssl/pem.h>
 
 class ZSignAsset
 {
@@ -12,6 +14,14 @@ public:
 				const string& strProvFile,
 				const string& strEntitleFile,
 				const string& strPassword,
+				bool bAdhoc,
+				bool bSHA256Only,
+				bool bSingleBinary);
+
+	bool Init(X509* cert,
+				EVP_PKEY* pkey,
+				const string& strProvisionFile,
+				const string& strEntitlementsData,
 				bool bAdhoc,
 				bool bSHA256Only,
 				bool bSingleBinary);
@@ -31,8 +41,10 @@ private:
 						const string& strAltnateCodeDirectorySlot256, 
 						string& strCMSOutput);
 
+	bool GetCertSubjectField(void *cert, int nid, string &output);
 	bool GetCertSubjectCN(void* cert, string& strSubjectCN);
 	bool GetCertSubjectCN(const string& strCertData, string& strSubjectCN);
+	bool GetCertSubjectOU(void *cert, string &strSubjectOU);
 
 public:
 	static bool		CMSError();
