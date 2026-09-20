@@ -1,0 +1,24 @@
+{
+  "originHash" : "6f7c939866104d9b5b3afd39115d2712c067ed040e48c69aec533eaff68a2fc9",
+  "pins" : [
+    {
+      "identity" : "swift-concurrency-extras",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/pointfreeco/swift-concurrency-extras.git",
+      "state" : {
+        "revision" : "82a4ae7170d98d8538ec77238b7eb8e7199ef2e8",
+        "version" : "1.3.1"
+      }
+    },
+    {
+      "identity" : "xtool-core",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/xtool-org/xtool-core",
+      "state" : {
+        "revision" : "f867f9c2aea16ac78ca14d0d2f948b47db0732b4",
+        "version" : "1.5.0"
+      }
+    }
+  ],
+  "version" : 3
+}
