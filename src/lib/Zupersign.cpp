@@ -4,6 +4,7 @@
 #include "macho.h"
 #include "bundle.h"
 #include "signing.h"
+#include <list>
 
 static void print_ssl_err(char **exception, const char *reason) {
     unsigned long last_error = ERR_peek_last_error();
@@ -67,23 +68,50 @@ int zsign_sign(
         }
     }
 
-    ZSignAsset asset;
-    // TODO: Use diff ents for diff products
-    success = asset.Init(
-        cert, pkey, "",
-        string(static_cast<const char *>(entitlements[0].data), entitlements[0].len),
-        is_adhoc, false, false
-    );
-    if (!success) {
-        *exception = strdup("Invalid developer certificate/private key");
-        EVP_PKEY_free(pkey);
-        X509_free(cert);
-        return -1;
+    // One asset per entitlements set. The one for the app itself (or the first one if none
+    // is bound to the app) is the default; the others apply to the nested bundle at their path.
+    string appRoot(app_directory);
+    while (appRoot.size() > 1 && appRoot.back() == '/') {
+        appRoot.pop_back();
+    }
+    std::list<ZSignAsset> assets;
+    size_t defaultIndex = 0;
+    for (size_t i = 0; i < num_entitlements; i++) {
+        assets.emplace_back();
+        ZSignAsset &asset = assets.back();
+        success = asset.Init(
+            cert, pkey, "",
+            string(static_cast<const char *>(entitlements[i].data), entitlements[i].len),
+            is_adhoc, false, false
+        );
+        if (!success) {
+            *exception = strdup("Invalid developer certificate/private key");
+            EVP_PKEY_free(pkey);
+            X509_free(cert);
+            return -1;
+        }
+
+        string path(entitlements[i].bundle_path ? entitlements[i].bundle_path : "");
+        while (path.size() > 1 && path.back() == '/') {
+            path.pop_back();
+        }
+        if (path == appRoot) {
+            asset.m_strBundlePath = "/";
+            defaultIndex = i;
+        } else if (path.size() > appRoot.size() + 1 && path.compare(0, appRoot.size() + 1, appRoot + "/") == 0) {
+            asset.m_strBundlePath = path.substr(appRoot.size() + 1);
+        }
+    }
+    // the default asset must come first: SignFolder uses the front of the list
+    if (defaultIndex != 0) {
+        auto it = assets.begin();
+        std::advance(it, defaultIndex);
+        assets.splice(assets.begin(), assets, it);
     }
 
     ZBundle bundle;
     success = bundle.SignFolder(
-        &asset,
+        &assets,
         app_directory,
         "",
         "",

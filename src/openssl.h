@@ -67,6 +67,7 @@ public:
 	string	m_strProvData;
 	string	m_strEntitleData;
 	string	m_strApplicationId;
+	string		m_strBundlePath;
 
 private:
 	void*	m_evpPKey;

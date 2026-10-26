@@ -4,6 +4,7 @@
 #include "openssl.h"
 #include "signing.h"
 #include "macho.h"
+#include <sys/stat.h>
 
 ZMachO::ZMachO()
 {
@@ -178,11 +179,18 @@ bool ZMachO::ReallocCodeSignSpace()
 	}
 	ZLog::Warn(">>> Success!\n");
 
+	// the rewritten file replaces the original, so it must keep its permissions (the executable bit)
+	struct stat fileStat;
+	bool bHasMode = 0 == stat(m_strFile.c_str(), &fileStat);
+
 	if (1 == m_arrArchOes.size()) {
 		CloseFile();
 		ZFile::RemoveFile(m_strFile.c_str());
 		string strNewArchOFile = m_strFile + ".archo.0";
 		if (0 == rename(strNewArchOFile.c_str(), m_strFile.c_str())) {
+#ifndef _WIN32
+			if (bHasMode) chmod(m_strFile.c_str(), fileStat.st_mode & 07777);
+#endif
 			return OpenFile(m_strFile.c_str());
 		}
 	} else { //fat
@@ -250,6 +258,9 @@ bool ZMachO::ReallocCodeSignSpace()
 
 		ZFile::RemoveFile(m_strFile.c_str());
 		if (0 == rename(strNewFatMachOFile.c_str(), m_strFile.c_str())) {
+#ifndef _WIN32
+			if (bHasMode) chmod(m_strFile.c_str(), fileStat.st_mode & 07777);
+#endif
 			return OpenFile(m_strFile.c_str());
 		}
 	}

@@ -391,11 +391,12 @@ bool ZSignAsset::GenerateCMS(void* pscert, void* pspkey, const string& strCDHash
 		// Fall back to the embedded WWDR intermediate matching the leaf's issuer.
 		unsigned long issuerHash = X509_issuer_name_hash(scert);
 		const char* szIssuerCert = WWDRIntermediatePEM(issuerHash);
-		if (NULL == szIssuerCert) {
+		if (NULL == szIssuerCert && X509_V_OK == X509_check_issued(scert, scert)) {
+			// self-signed identity (e.g. generated for tests): there is no chain to embed
+		} else if (NULL == szIssuerCert) {
 			ZLog::ErrorV(">>> Unknown issuer hash 0x%08lx! No embedded WWDR intermediate matches and the p12 carries no usable CA chain.\n", issuerHash);
 			return false;
-		}
-		if (!AppendPEMCert(otherCerts, szIssuerCert)) {
+		} else if (!AppendPEMCert(otherCerts, szIssuerCert)) {
 			return CMSError();
 		}
 	}

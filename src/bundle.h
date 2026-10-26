@@ -47,6 +47,7 @@ private:
 private:
 	bool FindAppFolder(const string& strFolder, string& strAppFolder);
 	bool GetObjectsToSign(const string& strFolder, jvalue& jvInfo);
+	ZSignAsset* AssetForFolder(const string& strFolder);
 	bool GetSignFolderInfo(const string& strFolder, jvalue& jvNode, bool bGetName = false);
 
 private:
@@ -57,6 +58,7 @@ private:
 	bool			m_bWeakInject;
 	bool			m_bRemoveProvision;
 	ZSignAsset*		m_pSignAsset;
+	ZSignAsset*		m_pDefaultAsset;
 	list<ZSignAsset>*	m_pSignAssets;
 	vector<string>	m_arrInjectDylibs;
 	vector<string>	m_arrInjectDylibNames;

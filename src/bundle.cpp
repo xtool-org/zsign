@@ -8,6 +8,7 @@ ZBundle::ZBundle()
 {
 	m_pSignAssets = NULL;
 	m_pSignAsset = NULL;
+	m_pDefaultAsset = NULL;
 	m_bForceSign = false;
 	m_bWeakInject = false;
 	m_bRemoveProvision = false;
@@ -309,8 +310,24 @@ static bool IsAppExtensionPath(const string& strPath)
 	return (0 == strPath.rfind("PlugIns/", 0) || 0 == strPath.rfind("Extensions/", 0));
 }
 
+// The asset bound to this bundle (by its path relative to the app, "/" for the app itself),
+// falling back to the default one. This lets each bundle have its own entitlements.
+ZSignAsset* ZBundle::AssetForFolder(const string& strFolder)
+{
+	if (m_pSignAssets) {
+		for (auto it = m_pSignAssets->begin(); it != m_pSignAssets->end(); ++it) {
+			if (!it->m_strBundlePath.empty() && it->m_strBundlePath == strFolder) {
+				return &(*it);
+			}
+		}
+	}
+	return m_pDefaultAsset;
+}
+
 bool ZBundle::SignNode(jvalue& jvNode)
 {
+	m_pSignAsset = AssetForFolder(jvNode["path"].as_cstr());
+
 	if (jvNode.has("files")) {
 		for (size_t i = 0; i < jvNode["files"].size(); i++) {
 			string strFile = jvNode["files"][i];
@@ -333,6 +350,9 @@ bool ZBundle::SignNode(jvalue& jvNode)
 			}
 		}
 	}
+
+	// children may have switched the asset
+	m_pSignAsset = AssetForFolder(jvNode["path"].as_cstr());
 
 	jbase64 b64;
 	string strInfoSHA1;
@@ -411,16 +431,22 @@ bool ZBundle::SignNode(jvalue& jvNode)
 		auto endsWith = [](const string& str, const string& suffix) {
 			return str.size() >= suffix.size() && 0 == str.compare(str.size()-suffix.size(), suffix.size(), suffix);
 		};
+		ZSignAsset* pBound = m_pSignAsset;
+		bool bMatched = false;
 		for (auto it = m_pSignAssets->rbegin(); it != m_pSignAssets->rend(); ++it) {
 			m_pSignAsset = &(*it);
-			if (endsWith(m_pSignAsset->m_strApplicationId, strBundleId)) {
+			if (!m_pSignAsset->m_strProvData.empty() && endsWith(m_pSignAsset->m_strApplicationId, strBundleId)) {
 				if (!ZFile::WriteFileV(m_pSignAsset->m_strProvData, "%s/%s/embedded.mobileprovision", m_strAppFolder.c_str(), strFolder.c_str())) {
 					ZLog::ErrorV(">>> Can't write embedded.mobileprovision!\n");
 					return false;
 				}
 				bForceSign = true;
+				bMatched = true;
 				break;
 			}
+		}
+		if (!bMatched) {
+			m_pSignAsset = pBound;
 		}
 	}
 
@@ -791,6 +817,7 @@ bool ZBundle::SignFolder(ZSignAsset* pSignAsset,
 {
 	m_bForceSign = bForce;
 	m_pSignAsset = pSignAsset;
+	m_pDefaultAsset = pSignAsset;
 	m_bWeakInject = bWeakInject;
 	m_bRemoveProvision = bRemoveProvision;
 	m_setRemoveDylibs.clear();
