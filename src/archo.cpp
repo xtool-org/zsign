@@ -43,6 +43,9 @@ bool ZArchO::Init(uint8_t* pBase, uint32_t uLength)
 	m_bBigEndian = (MH_CIGAM == m_pHeader->magic || MH_CIGAM_64 == m_pHeader->magic) ? true : false;
 	m_uHeaderSize = m_b64Bit ? sizeof(mach_header_64) : sizeof(mach_header);
 
+	// the load commands may grow up to the first byte of content, whichever section it belongs to
+	uint32_t uFirstSectionOffset = UINT32_MAX;
+
 	uint8_t* pLoadCommand = m_pBase + m_uHeaderSize;
 	for (uint32_t i = 0; i < BO(m_pHeader->ncmds); i++) {
 		load_command* plc = (load_command*)pLoadCommand;
@@ -50,15 +53,17 @@ bool ZArchO::Init(uint8_t* pBase, uint32_t uLength)
 		case LC_SEGMENT:
 		{
 			segment_command* seglc = (segment_command*)pLoadCommand;
+			for (uint32_t j = 0; j < BO(seglc->nsects); j++) {
+				section* sect = (section*)((pLoadCommand + sizeof(segment_command)) + sizeof(section) * j);
+				if (BO(sect->offset) > 0 && BO(sect->size) > 0 && BO(sect->offset) < uFirstSectionOffset) {
+					uFirstSectionOffset = BO(sect->offset);
+				}
+			}
 			if (0 == strcmp("__TEXT", seglc->segname)) {
 				s_uExecSegLimit = seglc->vmsize;
 				for (uint32_t j = 0; j < BO(seglc->nsects); j++) {
 					section* sect = (section*)((pLoadCommand + sizeof(segment_command)) + sizeof(section) * j);
-					if (0 == strcmp("__text", sect->sectname)) {
-						if (BO(sect->offset) > (BO(m_pHeader->sizeofcmds) + m_uHeaderSize)) {
-							m_uLoadCommandsFreeSpace = BO(sect->offset) - BO(m_pHeader->sizeofcmds) - m_uHeaderSize;
-						}
-					} else if (0 == strcmp("__info_plist", sect->sectname)) {
+					if (0 == strcmp("__info_plist", sect->sectname)) {
 						m_strInfoPlist.append((const char*)m_pBase + BO(sect->offset), BO(sect->size));
 					}
 				}
@@ -70,15 +75,17 @@ bool ZArchO::Init(uint8_t* pBase, uint32_t uLength)
 		case LC_SEGMENT_64:
 		{
 			segment_command_64* seglc = (segment_command_64*)pLoadCommand;
+			for (uint32_t j = 0; j < BO(seglc->nsects); j++) {
+				section_64* sect = (section_64*)((pLoadCommand + sizeof(segment_command_64)) + sizeof(section_64) * j);
+				if (BO(sect->offset) > 0 && BO((uint32_t)sect->size) > 0 && BO(sect->offset) < uFirstSectionOffset) {
+					uFirstSectionOffset = BO(sect->offset);
+				}
+			}
 			if (0 == strcmp("__TEXT", seglc->segname)) {
 				s_uExecSegLimit = seglc->vmsize;
 				for (uint32_t j = 0; j < BO(seglc->nsects); j++) {
 					section_64* sect = (section_64*)((pLoadCommand + sizeof(segment_command_64)) + sizeof(section_64) * j);
-					if (0 == strcmp("__text", sect->sectname)) {
-						if (BO(sect->offset) > (BO(m_pHeader->sizeofcmds) + m_uHeaderSize)) {
-							m_uLoadCommandsFreeSpace = BO(sect->offset) - BO(m_pHeader->sizeofcmds) - m_uHeaderSize;
-						}
-					} else if (0 == strcmp("__info_plist", sect->sectname)) {
+					if (0 == strcmp("__info_plist", sect->sectname)) {
 						m_strInfoPlist.append((const char*)m_pBase + BO(sect->offset), BO((uint32_t)sect->size));
 					}
 				}
@@ -108,6 +115,11 @@ bool ZArchO::Init(uint8_t* pBase, uint32_t uLength)
 		}
 
 		pLoadCommand += BO(plc->cmdsize);
+	}
+
+	uint32_t uCommandsEnd = BO(m_pHeader->sizeofcmds) + m_uHeaderSize;
+	if (UINT32_MAX != uFirstSectionOffset && uFirstSectionOffset > uCommandsEnd) {
+		m_uLoadCommandsFreeSpace = uFirstSectionOffset - uCommandsEnd;
 	}
 
 	return true;
@@ -611,6 +623,13 @@ uint32_t ZArchO::ReallocCodeSignSpace(const string& strNewFile)
 		return 0;
 	}
 
+	// Everything that can fail is checked before the first write: the header is mapped
+	// from the file, so a half-applied change would corrupt the binary.
+	if (NULL == m_pCodeSignSegment && m_uLoadCommandsFreeSpace < sizeof(codesignature_command)) {
+		ZLog::Error(">>> Can't find free space of LoadCommands for CodeSignature!\n");
+		return 0;
+	}
+
 	load_command* pseglc = (load_command*)m_pLinkEditSegment;
 	switch (BO(pseglc->cmd)) {
 	case LC_SEGMENT:
@@ -635,11 +654,6 @@ uint32_t ZArchO::ReallocCodeSignSpace(const string& strNewFile)
 
 	codesignature_command* pcslc = (codesignature_command*)m_pCodeSignSegment;
 	if (NULL == pcslc) {
-		if (m_uLoadCommandsFreeSpace < 4) {
-			ZLog::Error(">>> Can't find free space of LoadCommands for CodeSignature!\n");
-			return 0;
-		}
-
 		pcslc = (codesignature_command*)(m_pBase + m_uHeaderSize + BO(m_pHeader->sizeofcmds));
 		pcslc->cmd = BO(LC_CODE_SIGNATURE);
 		pcslc->cmdsize = BO((uint32_t)sizeof(codesignature_command));
