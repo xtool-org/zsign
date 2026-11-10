@@ -276,14 +276,15 @@ bool ZSignAsset::CMSError()
 	return false;
 }
 
-void* ZSignAsset::GenerateASN1Type(const string& value)
+void* ZSignAsset::GenerateASN1Type(const string& value, const string& algorithm)
 {
+	if (algorithm != "sha1" && algorithm != "sha256") { return NULL; }
 	long errline = -1;
 	char* genstr = NULL;
 	BIO* ldapbio = BIO_new(BIO_s_mem());
 	CONF* cnf = NCONF_new(NULL);
 	ASN1_TYPE* ret = NULL;
-	string a = "asn1=SEQUENCE:A\n[A]\nC=OBJECT:sha256\nB=FORMAT:HEX,OCT:" + value + "\n";
+	string a = "asn1=SEQUENCE:A\n[A]\nC=OBJECT:" + algorithm + "\nB=FORMAT:HEX,OCT:" + value + "\n";
 
 	if (NULL == ldapbio || NULL == cnf) {
 		ZLog::Error(">>> NCONF_new failed\n");
@@ -461,35 +462,39 @@ bool ZSignAsset::GenerateCMS(void* pscert, void* pspkey, const string& strCDHash
 		return CMSError();
 	}
 
-	// add CDHashes
-	static const char hex_upper[] = "0123456789ABCDEF";
-	string sha256;
-	sha256.reserve(strAltnateCodeDirectorySlot256.size() * 2);
-	for (size_t i = 0; i < strAltnateCodeDirectorySlot256.size(); i++) {
-		uint8_t c = (uint8_t)strAltnateCodeDirectorySlot256[i];
-		sha256 += hex_upper[c >> 4];
-		sha256 += hex_upper[c & 0x0F];
-	}
-
-	ASN1_OBJECT* obj2 = OBJ_txt2obj("1.2.840.113635.100.9.2", 1);
-	if (!obj2) {
+	ASN1_OBJECT* hashOID = OBJ_txt2obj("1.2.840.113635.100.9.2", 1);
+	X509_ATTRIBUTE* hashes = X509_ATTRIBUTE_new();
+	if (!hashOID || !hashes) {
+		ASN1_OBJECT_free(hashOID);
+		X509_ATTRIBUTE_free(hashes);
 		return CMSError();
 	}
-
-	X509_ATTRIBUTE* attr = X509_ATTRIBUTE_new();
-	if (!attr) {
-		return CMSError();
+	bool complete = X509_ATTRIBUTE_set1_object(hashes, hashOID) == 1;
+	ASN1_OBJECT_free(hashOID);
+	const string digests[] = { strCodeDirectorySlotSHA1, strAltnateCodeDirectorySlot256 };
+	const char* algorithms[] = { "sha1", "sha256" };
+	const size_t lengths[] = { 20, 32 };
+	for (size_t index = 0; complete && index < 2; index++) {
+		if (digests[index].size() != lengths[index]) {
+			complete = false;
+			break;
+		}
+		string hex;
+		const char* digits = "0123456789ABCDEF";
+		for (unsigned char byte : digests[index]) {
+			hex += digits[byte >> 4];
+			hex += digits[byte & 15];
+		}
+		ASN1_TYPE* value = (ASN1_TYPE*)GenerateASN1Type(hex, algorithms[index]);
+		complete = value && value->type == V_ASN1_SEQUENCE && X509_ATTRIBUTE_set1_data(hashes, V_ASN1_SEQUENCE,
+			ASN1_STRING_get0_data(value->value.asn1_string), ASN1_STRING_length(value->value.asn1_string)) == 1;
+		ASN1_TYPE_free(value);
 	}
-	X509_ATTRIBUTE_set1_object(attr, obj2);
-
-	ASN1_TYPE* type_256 = (ASN1_TYPE*)GenerateASN1Type(sha256);
-	if (!type_256) {
-		return CMSError();
+	if (complete) {
+		complete = CMS_signed_add1_attr(si, hashes) == 1;
 	}
-	X509_ATTRIBUTE_set1_data(attr, V_ASN1_SEQUENCE,
-		ASN1_STRING_get0_data(type_256->value.asn1_string), ASN1_STRING_length(type_256->value.asn1_string));
-	int addHashSHA = CMS_signed_add1_attr(si, attr);
-	if (!addHashSHA) {
+	X509_ATTRIBUTE_free(hashes);
+	if (!complete) {
 		return CMSError();
 	}
 
@@ -515,7 +520,6 @@ bool ZSignAsset::GenerateCMS(void* pscert, void* pspkey, const string& strCDHash
 
 	strCMSOutput.clear();
 	strCMSOutput.append(bptr->data, bptr->length);
-	ASN1_TYPE_free(type_256);
 	sk_X509_pop_free(otherCerts, X509_free); // CMS_sign holds its own references
 	return (!strCMSOutput.empty());
 }

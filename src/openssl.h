@@ -51,7 +51,7 @@ public:
 	// Returns the embedded WWDR intermediate (G1-G8) whose subject name hash
 	// matches uIssuerHash, or NULL. Shared by signing and certificate check.
 	static const char*	WWDRIntermediatePEM(unsigned long uIssuerHash);
-	static void*	GenerateASN1Type(const string& value);
+	static void*	GenerateASN1Type(const string& value, const string& algorithm = "sha256");
 	static bool		GetCertInfo(void* pcert, jvalue& jvCertInfo);
 	static bool		GetCMSInfo(uint8_t* pCMSData, uint32_t uCMSLength, jvalue& jvOutput);
 	static bool		GetCMSContent(const string& strCMSDataInput, string& strContentOutput);
